@@ -1,0 +1,17 @@
+target/
+
+### IntelliJ IDEA ###
+.idea/
+*.iml
+*.iws
+*.ipr
+
+### Maven ###
+.mvn/wrapper/maven-wrapper.jar
+
+### 本地数据 ###
+data/
+*.log
+
+### Spring Initializr ###
+HELP.md
