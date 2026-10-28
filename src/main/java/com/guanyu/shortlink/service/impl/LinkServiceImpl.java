@@ -7,6 +7,7 @@ import com.guanyu.shortlink.service.ILinkService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -28,12 +29,11 @@ import java.util.concurrent.TimeUnit;
 public class LinkServiceImpl extends ServiceImpl<LinkMapper, Link> implements ILinkService {
 
 
-    private  final LinkMapper linkMapper;
-
     private final StringRedisTemplate redisTemplate;
 
     private static final String CACHE_PREFIX = "shortlink:code:";
     private static final String EMPTY_VALUE = "__NULL__";
+
 
     @Override
     public String create(String originUrl) {
@@ -65,6 +65,7 @@ public class LinkServiceImpl extends ServiceImpl<LinkMapper, Link> implements IL
 
     @Override
     public String getOriginUrl(String code) {
+
         String cacheKey = CACHE_PREFIX + code;
 
         // 1. 先查缓存
