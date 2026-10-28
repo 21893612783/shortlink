@@ -15,4 +15,6 @@ public interface ILinkService extends IService<Link> {
 
     String create(String originUrl);
 
+    String getOriginUrl(String code);
+
 }

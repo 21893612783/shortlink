@@ -9,6 +9,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+
 /**
  * <p>
  * 短链接表 服务实现类
@@ -53,6 +55,22 @@ public class LinkServiceImpl extends ServiceImpl<LinkMapper, Link> implements IL
         return code;
     }
 
+    @Override
+    public String getOriginUrl(String code) {
+        Link link = this.lambdaQuery()
+                .eq(Link::getShortCode, code)
+                .eq(Link::getEnable, 1)
+                .one();
 
+        if (link == null) {
+            throw new IllegalArgumentException("短链接不存在");
+        }
+        if (link.getExpireTime() != null
+                && link.getExpireTime().isBefore(LocalDateTime.now())) {
+            throw new IllegalArgumentException("短链接已过期");
+        }
 
+        log.info("跳转 code={} -> {}", code, link.getOriginUrl());
+        return link.getOriginUrl();
+    }
 }
