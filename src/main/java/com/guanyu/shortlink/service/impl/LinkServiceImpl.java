@@ -7,9 +7,12 @@ import com.guanyu.shortlink.service.ILinkService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 
 /**
  * <p>
@@ -26,6 +29,11 @@ public class LinkServiceImpl extends ServiceImpl<LinkMapper, Link> implements IL
 
 
     private  final LinkMapper linkMapper;
+
+    private final StringRedisTemplate redisTemplate;
+
+    private static final String CACHE_PREFIX = "shortlink:code:";
+    private static final String EMPTY_VALUE = "__NULL__";
 
     @Override
     public String create(String originUrl) {
@@ -57,20 +65,40 @@ public class LinkServiceImpl extends ServiceImpl<LinkMapper, Link> implements IL
 
     @Override
     public String getOriginUrl(String code) {
+        String cacheKey = CACHE_PREFIX + code;
+
+        // 1. 先查缓存
+        String cached = redisTemplate.opsForValue().get(cacheKey);
+        if (cached != null) {
+            if (EMPTY_VALUE.equals(cached)) {
+                throw new IllegalArgumentException("短链接不存在");
+            }
+            log.info("命中缓存 code={}", code);
+            return cached;
+        }
+
+        // 2. 缓存未命中，查数据库
         Link link = this.lambdaQuery()
                 .eq(Link::getShortCode, code)
                 .eq(Link::getEnable, 1)
                 .one();
 
-        if (link == null) {
-            throw new IllegalArgumentException("短链接不存在");
-        }
-        if (link.getExpireTime() != null
-                && link.getExpireTime().isBefore(LocalDateTime.now())) {
-            throw new IllegalArgumentException("短链接已过期");
+        boolean expired = link != null
+                && link.getExpireTime() != null
+                && link.getExpireTime().isBefore(LocalDateTime.now());
+
+        if (link == null || expired) {
+            redisTemplate.opsForValue()
+                    .set(cacheKey, EMPTY_VALUE, 60, TimeUnit.SECONDS);
+            throw new IllegalArgumentException("短链接不存在或已过期");
         }
 
-        log.info("跳转 code={} -> {}", code, link.getOriginUrl());
+        // 3. 写回缓存，随机 TTL 防雪崩
+        long ttl = 3600 + ThreadLocalRandom.current().nextInt(600);
+        redisTemplate.opsForValue()
+                .set(cacheKey, link.getOriginUrl(), ttl, TimeUnit.SECONDS);
+
+        log.info("查库并写缓存 code={} -> {}", code, link.getOriginUrl());
         return link.getOriginUrl();
     }
 }
