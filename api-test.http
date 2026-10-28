@@ -1,0 +1,7 @@
+### 创建短链接
+POST http://localhost:8080/api/v1/links
+Content-Type: application/json
+
+{
+  "originUrl": "https://www.baidu.com"
+}
